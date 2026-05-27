@@ -270,7 +270,7 @@ function ESP:Add(obj,color,pulse,pulseTime,category)
             local pos,visible =
                 Camera:WorldToViewportPoint(part.Position)
 
-            if visible and ESP.Settings.Enabled then
+            if visible and ESP.Settings.Enabled and settings.Tracer then
                 local viewport = Camera.ViewportSize
 
                 data.Tracer.Visible = true
