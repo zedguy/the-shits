@@ -23,6 +23,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Main = Window:AddTab("Main", "sword"),
     Visuals = Window:AddTab("Visuals", "eye"),
+    Visuals = Window:AddTab("Utilities", "wrench"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -33,63 +34,34 @@ MainGroupBox:AddToggle("ESPToggle", {
     Text = "ESP",
     Default = false,
     Callback = function(Value)
-        print("ESP:", Value)
     end,
-}):AddKeyPicker("ESPKey", {
-    Default = "C",
-    SyncToggleState = true,
-    Mode = "Toggle",
-    Text = "ESP",
-    NoUI = false
 })
 
 MainGroupBox:AddToggle("ReviveToggle", {
     Text = "Auto-Revive",
     Default = false,
     Callback = function(Value)
-        print("Auto-Revive:", Value)
     end,
-}):AddKeyPicker("ReviveKey", {
-    Default = "H",
-    SyncToggleState = true,
-    Mode = "Toggle",
-    Text = "Auto-Revive",
-    NoUI = false
 })
 
 MainGroupBox:AddToggle("ExitToggle", {
     Text = "Auto-Exit",
     Default = false,
     Callback = function(Value)
-        print("Auto-Exit:", Value)
     end,
-}):AddKeyPicker("ExitKey", {
-    Default = "M",
-    SyncToggleState = true,
-    Mode = "Toggle",
-    Text = "Auto-Exit",
-    NoUI = false
 })
 
 MainGroupBox:AddToggle("VoteToggle", {
     Text = "Spam Votes",
     Default = false,
     Callback = function(Value)
-        print("Spam Votes:", Value)
     end,
-}):AddKeyPicker("VoteKey", {
-    Default = "B",
-    SyncToggleState = true,
-    Mode = "Toggle",
-    Text = "Spam Votes",
-    NoUI = false
 })
 
 UtilityGroupBox:AddToggle("TrackerToggle", {
     Text = "Show Entity Overlay",
     Default = true,
     Callback = function(Value)
-        print("Entity Overlay:", Value)
     end,
 })
 
@@ -98,14 +70,12 @@ UtilityGroupBox:AddDivider()
 UtilityGroupBox:AddButton({
     Text = "Print Spawned Entities",
     Func = function()
-        print("Print Spawned Entities Clicked")
     end,
 })
 
 UtilityGroupBox:AddButton({
     Text = "Force Revive All",
     Func = function()
-        print("Force Revive All Clicked")
     end,
 })
 
