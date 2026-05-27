@@ -11,6 +11,10 @@ ESP.Categories = {}
 ESP.Settings = {
     Enabled = true,
 
+    Highlight = true,
+    Text = false,
+    Tracer = false,
+
     DefaultColor = Color3.fromRGB(255,255,255),
     DefaultPulse = false,
     DefaultPulseTime = 1,
@@ -18,14 +22,28 @@ ESP.Settings = {
     FillTransparency = 0.8,
     OutlineTransparency = 0,
 
-    Text = false,
-    Tracer = false,
-
     DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
 }
 
 function ESP:SetSetting(i,v)
     self.Settings[i] = v
+
+    for obj,data in pairs(self.Objects) do
+        if i == "Highlight" and data.Highlight then
+            data.Highlight.Enabled =
+                v and self.Settings.Enabled
+        end
+
+        if i == "Tracer" and data.Tracer then
+            data.Tracer.Visible =
+                v and self.Settings.Enabled
+        end
+
+        if i == "Text" and data.Text then
+            data.Text.Enabled =
+                v and self.Settings.Enabled
+        end
+    end
 end
 
 function ESP:GetSetting(i)
@@ -160,7 +178,7 @@ function ESP:Add(obj,color,pulse,pulseTime,category)
     highlight.OutlineTransparency = settings.OutlineTransparency
     highlight.FillColor = color
     highlight.OutlineColor = color
-    highlight.Enabled = settings.Enabled
+    highlight.Enabled = settings.Enabled and settings.Highlight
     highlight.Parent = obj
 
     local billboard
@@ -173,7 +191,11 @@ function ESP:Add(obj,color,pulse,pulseTime,category)
         billboard.AlwaysOnTop = true
         billboard.StudsOffset = Vector3.new(0,3,0)
         billboard.Adornee = obj
-        billboard.Enabled = settings.Enabled
+
+        billboard.Enabled =
+            settings.Enabled
+            and settings.Text
+
         billboard.Parent = obj
 
         label = Instance.new("TextLabel")
@@ -191,7 +213,9 @@ function ESP:Add(obj,color,pulse,pulseTime,category)
 
     if tracerEnabled then
         tracer = Drawing.new("Line")
-        tracer.Visible = settings.Enabled
+        tracer.Visible =
+            settings.Enabled
+            and settings.Tracer
         tracer.Color = color
         tracer.Thickness = 2
         tracer.Transparency = 1
@@ -305,15 +329,18 @@ function ESP:Toggle(state)
 
     for obj,data in pairs(self.Objects) do
         if data.Highlight then
-            data.Highlight.Enabled = state
+            data.Highlight.Enabled =
+                state and self.Settings.Highlight
         end
 
         if data.Tracer then
-            data.Tracer.Visible = state
+            data.Tracer.Visible =
+                state and self.Settings.Tracer
         end
 
         if data.Text then
-            data.Text.Enabled = state
+            data.Text.Enabled =
+                state and self.Settings.Text
         end
 
         self:_Gui(obj,state)
