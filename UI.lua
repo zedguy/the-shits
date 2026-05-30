@@ -20,6 +20,22 @@ end
 local Library = getgenv().LinoriaCache.Library
 local ThemeManager = getgenv().LinoriaCache.ThemeManager
 local SaveManager = getgenv().LinoriaCache.SaveManager
+local ESP = getgenv().ESP
+
+ESP:CreateCategory("Players", {
+    Color = Color3.fromRGB(0, 255, 0),
+    Text = true
+})
+
+ESP:CreateCategory("Entities", {
+    Color = Color3.fromRGB(255, 80, 80),
+    Text = true
+})
+
+ESP:CreateCategory("Items", {
+    Color = Color3.fromRGB(255, 255, 0),
+    Text = true
+})
 
 local Options = Library.Options
 local Toggles = Library.Toggles
