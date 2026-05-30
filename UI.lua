@@ -8,6 +8,15 @@ if not getgenv().LinoriaCache then
     }
 end
 
+if not getgenv().ESP then
+    getgenv().ESP =
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/zedguy/the-shits/refs/heads/main/ESP.lua"
+        ))()
+else
+    print("Loaded ESP library from getgenv")
+end
+
 local Library = getgenv().LinoriaCache.Library
 local ThemeManager = getgenv().LinoriaCache.ThemeManager
 local SaveManager = getgenv().LinoriaCache.SaveManager
@@ -15,71 +24,86 @@ local SaveManager = getgenv().LinoriaCache.SaveManager
 local Options = Library.Options
 local Toggles = Library.Toggles
 local Window = Library:CreateWindow({
-    Title = "Darkest Hours Menu",
+    Title = "Darkest Hours",
     Center = true,
     AutoShow = true,
     ShowCustomCursor = true,
+    Icon = 95816097006870,
 })
 local Tabs = {
     Main = Window:AddTab("Main", "sword"),
     Visuals = Window:AddTab("Visuals", "eye"),
-    Visuals = Window:AddTab("Utilities", "wrench"),
+    Utilities = Window:AddTab("Utilities", "wrench"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
-local MainGroupBox = Tabs.Main:AddLeftGroupbox("Main")
-local UtilityGroupBox = Tabs.Main:AddRightGroupbox("Utilities")
+local function FormatName(str)
+    return str:gsub("(%l)(%u)", "%1 %2")
+end
 
-MainGroupBox:AddToggle("ESPToggle", {
-    Text = "ESP",
-    Default = false,
-    Callback = function(Value)
-    end,
-})
+local Player = Tabs.Main:AddLeftGroupbox("Player")
+local Lists = Tabs.Utilities:AddRightGroupbox("Lists")
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+local LeftTabBox = Tabs.Visuals:AddLeftTabbox("ESP")
 
-MainGroupBox:AddToggle("ReviveToggle", {
-    Text = "Auto-Revive",
-    Default = false,
-    Callback = function(Value)
-    end,
-})
+local ESPTab = LeftTabBox:AddTab("ESP")
+local SettingsTab = LeftTabBox:AddTab("Settings")
 
-MainGroupBox:AddToggle("ExitToggle", {
-    Text = "Auto-Exit",
-    Default = false,
-    Callback = function(Value)
-    end,
-})
-
-MainGroupBox:AddToggle("VoteToggle", {
-    Text = "Spam Votes",
-    Default = false,
-    Callback = function(Value)
-    end,
-})
-
-UtilityGroupBox:AddToggle("TrackerToggle", {
-    Text = "Show Entity Overlay",
+ESPTab:AddToggle("PlayerESP", {
+    Text = "Players",
     Default = true,
     Callback = function(Value)
-    end,
+        ESP:ToggleCategory("Players", Value)
+    end
 })
 
-UtilityGroupBox:AddDivider()
-
-UtilityGroupBox:AddButton({
-    Text = "Print Spawned Entities",
-    Func = function()
-    end,
+ESPTab:AddToggle("EntityESP", {
+    Text = "Entities",
+    Default = true,
+    Callback = function(Value)
+        ESP:ToggleCategory("Entities", Value)
+    end
 })
 
-UtilityGroupBox:AddButton({
-    Text = "Force Revive All",
-    Func = function()
-    end,
+ESPTab:AddToggle("ItemESP", {
+    Text = "Items",
+    Default = true,
+    Callback = function(Value)
+        ESP:ToggleCategory("Items", Value)
+    end
 })
 
-local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+SettingsTab:AddToggle("MasterESP", {
+    Text = "Enable ESP",
+    Default = true,
+    Callback = function(Value)
+        ESP:Toggle(Value)
+    end
+})
+
+SettingsTab:AddToggle("HighlightESP", {
+    Text = "Highlights",
+    Default = true,
+    Callback = function(Value)
+        ESP:SetSetting("Highlight", Value)
+    end
+})
+
+SettingsTab:AddToggle("TextESP", {
+    Text = "Text Labels",
+    Default = true,
+    Callback = function(Value)
+        ESP:SetSetting("Text", Value)
+    end
+})
+
+SettingsTab:AddToggle("TracerESP", {
+    Text = "Tracers",
+    Default = false,
+    Callback = function(Value)
+        ESP:SetSetting("Tracer", Value)
+    end
+})
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
     Default = false,
