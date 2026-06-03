@@ -1,25 +1,154 @@
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+local Options = Library.Options
+local Toggles = Library.Toggles
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Folder = Workspace:WaitForChild("Entities")
 local charactersFolder = Workspace:WaitForChild("Characters"):WaitForChild("Player")
 
--- ==========================
--- LIBRARY INITIALIZATION
--- ==========================
-local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+----------------------------------------------------------------
+-- SPEED EFFECT MODULE SYSTEM
+----------------------------------------------------------------
+local SharedModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Classes"):WaitForChild("SharedCharacter")
+local SharedCharacter = require(SharedModule)
 
-local Options = Library.Options
-local Toggles = Library.Toggles
+local ClientSpeedEffect = {
+    Name = "ClientSpeedBoost",
+    Enabled = false, -- Default to false so it respects UI toggle state on load
+    SpeedLevel = 3,  -- Initialized via UI value later
+    _connection = nil,
+    _sharedCharObj = nil,
+    _stackName = "CLIENT_SPEED_OVERRIDE"
+}
 
+function ClientSpeedEffect:Start()
+    local character = LocalPlayer.Character
+    if not character then 
+        warn("[-] Character not found. Postponing execution until character spawns.")
+        return 
+    end
+
+    local success, obj = pcall(function()
+        return SharedCharacter.getObject(character) or (SharedCharacter.new and SharedCharacter.new(character))
+    end)
+
+    if not success or not obj then
+        warn("[-] Failed to safely bind to the game's SharedCharacter framework.")
+        return
+    end
+
+    self._sharedCharObj = obj
+    self.Enabled = true
+    print("[+] Speed modifier successfully attached.")
+
+    if self._connection then 
+        self._connection:Disconnect() 
+    end
+
+    self._connection = RunService.Heartbeat:Connect(function(deltaTime)
+        if not self.Enabled or not self._sharedCharObj then return end
+        
+        pcall(function()
+            local speedStack = self._sharedCharObj.Stacks and self._sharedCharObj.Stacks.SpeedStack
+            if speedStack then
+                speedStack:RemoveModifier(self._stackName)
+                
+                speedStack:AddModifier(self._stackName, function(modifierData)
+                    -- Formula matches the decompiler: Base * (1 + Level / 3)
+                    modifierData.Output = (modifierData.Output or 1) * (1 + self.SpeedLevel / 16)
+                    return false
+                end, 5, true)
+                
+                if self._sharedCharObj.UpdateWalkSpeed then
+                    self._sharedCharObj:UpdateWalkSpeed()
+                end
+            end
+        end)
+    end)
+end
+
+function ClientSpeedEffect:Stop()
+    self.Enabled = false
+    if self._connection then
+        self._connection:Disconnect()
+        self._connection = nil
+    end
+    
+    pcall(function()
+        if self._sharedCharObj and self._sharedCharObj.Stacks and self._sharedCharObj.Stacks.SpeedStack then
+            self._sharedCharObj.Stacks.SpeedStack:RemoveModifier(self._stackName)
+            if self._sharedCharObj.UpdateWalkSpeed then
+                self._sharedCharObj:UpdateWalkSpeed()
+            end
+        end
+    end)
+    
+    self._sharedCharObj = nil
+    print("[-] Speed modifier stopped and removed.")
+end
+
+local WalkspeedConnection
+local function StartForceWalkspeed()
+    if WalkspeedConnection then
+        WalkspeedConnection:Disconnect()
+    end
+    WalkspeedConnection = RunService.Heartbeat:Connect(function()
+        if not Toggles.SpeedHack.Value then
+            return
+        end
+
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = Options.SpeedAmount.Value
+        end
+    end)
+end
+local function StopForceWalkspeed()
+    if WalkspeedConnection then
+        WalkspeedConnection:Disconnect()
+        WalkspeedConnection = nil
+    end
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = 16
+    end
+end
+
+
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if not Toggles.SpeedHack or not Toggles.SpeedHack.Value then return end
+    if Options.SpeedMethod and Options.SpeedMethod.Value ~= "Speed Effect" then return end
+
+    task.spawn(function()
+        repeat
+            task.wait()
+            local success, obj = pcall(function()
+                return SharedCharacter.getObject(character)
+            end)
+        until success and obj and obj.Stacks and obj.Stacks.SpeedStack
+
+        ClientSpeedEffect:Stop()
+        ClientSpeedEffect.Enabled = true
+        ClientSpeedEffect._sharedCharObj = obj
+        ClientSpeedEffect:Start()
+        print("[+] Reattached speed after respawn")
+    end)
+end)
+
+----------------------------------------------------------------
+-- INTERFACE CONFIGURATION
+----------------------------------------------------------------
 local Window = Library:CreateWindow({
     Title = "Darkest Hours",
     Center = true,
@@ -40,21 +169,6 @@ local function FormatName(str)
     return str:gsub("(%l)(%u)", "%1 %2")
 end
 
--- ==========================
--- LOGIC & UTILITIES
--- ==========================
-
-local isLegacyChat = TextChatService.ChatVersion == Enum.ChatVersion.LegacyChatService
-local function chatMessage(str)
-    str = tostring(str)
-    if not isLegacyChat then
-        TextChatService.TextChannels.RBXGeneral:SendAsync(str)
-    else
-        ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(str, "All")
-    end
-end
-
--- Reusable revive sequence
 local function performRevive(prompt)
     local char = LocalPlayer.Character
     if char and char.PrimaryPart and prompt.Parent then
@@ -71,111 +185,25 @@ local function performRevive(prompt)
     end
 end
 
-local function reviveAllDowned()
-    for _, v in ipairs(charactersFolder:GetDescendants()) do
-        if v.Name == "RevivePrompt" and v:IsA("ProximityPrompt") then
-            performRevive(v)
-            task.wait(0.2)
-        end
+local isLegacyChat = TextChatService.ChatVersion == Enum.ChatVersion.LegacyChatService
+local function chatMessage(str)
+    str = tostring(str)
+    if not isLegacyChat then
+        TextChatService.TextChannels.RBXGeneral:SendAsync(str)
+    else
+        ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(str, "All")
     end
 end
 
--- Local ESP Module
-local function espify(m, espCategoryColor)
-    if m:FindFirstChild("__esp") then return end
-
-    local tag = Instance.new("BoolValue")
-    tag.Name = "__esp"
-    tag.Parent = m
-    
-    local h = Instance.new("Highlight")
-    h.Name = "__highlight"
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    h.FillTransparency = 0.8
-    h.OutlineTransparency = 0
-    h.FillColor = espCategoryColor
-    h.OutlineColor = espCategoryColor
-    h.Enabled = Toggles.ESPHighlight and Toggles.ESPHighlight.Value or false
-    h.Adornee = m
-    h.Parent = m
-
-    for _, v in ipairs(m:GetDescendants()) do
-        if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
-            v.AlwaysOnTop = Toggles.ESPText and Toggles.ESPText.Value or false
-        end
+local function getMapSpawns()
+    if workspace.MapFolder.Main:FindFirstChildOfClass("Model") then
+        game.Players.LocalPlayer.Character:PivotTo(workspace.MapFolder.Main:FindFirstChildOfClass("Model").Spawns:GetChildren()[1].Position + Vector3.new(0,4,0))
     end
 end
 
-local function scanEntities()
-    for _, v in ipairs(Folder:GetDescendants()) do
-        if v:IsA("Model") then
-            if Toggles.EntitiesESP.Value then
-                espify(v, Options.EntitiesColor.Value)
-            end
-            
-            local h = v:FindFirstChild("__highlight")
-            if h then
-                h.Enabled = (Toggles.EntitiesESP.Value and Toggles.ESPHighlight.Value)
-                h.FillColor = Options.EntitiesColor.Value
-                h.OutlineColor = Options.EntitiesColor.Value
-            end
-
-            if v:FindFirstChild("__esp") then
-                for _, g in ipairs(v:GetDescendants()) do
-                    if g:IsA("BillboardGui") or g:IsA("SurfaceGui") then
-                        g.AlwaysOnTop = Toggles.ESPText.Value
-                    end
-                end
-            end
-        end
-    end
+local function getLobbySpawns()
+    game.Players.LocalPlayer.Character:PivotTo(workspace.MapFolder.Lobby:FindFirstChildOfClass("Model").LobbySpawn.Position + Vector3.new(0,4,0))
 end
-
--- Track new entity spawns for Notifs and ESP
-Folder.DescendantAdded:Connect(function(v)
-    if v:IsA("Model") then
-        if Toggles.NotifyChat.Value then
-            local suffix = Options.NotifText.Value
-            chatMessage(v.Name .. " " .. suffix)
-        end
-        if Toggles.EntitiesESP.Value then
-            task.defer(espify, v, Options.EntitiesColor.Value)
-        end
-    end
-end)
-
-charactersFolder.DescendantAdded:Connect(function(v)
-    if v.Name == "RevivePrompt" and Toggles.AutoRevive.Value and v:IsA("ProximityPrompt") then
-        task.wait(1)
-        performRevive(v)
-    end
-end)
-
--- Background loop for Player mods
-task.spawn(function()
-    while task.wait() do
-        local char = LocalPlayer.Character
-        -- Speed Hack loop
-        if Toggles.SpeedHack and Toggles.SpeedHack.Value and char and char:FindFirstChild("Humanoid") then
-            if Options.SpeedMethod.Value == "Force Walkspeed" then
-                char.Humanoid.WalkSpeed = Options.SpeedAmount.Value
-            end
-        end
-        
-        -- Instant Prompts loop
-        if Toggles.InstantPrompts and Toggles.InstantPrompts.Value then
-            for _, v in ipairs(Workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    v.HoldDuration = 0
-                end
-            end
-        end
-    end
-end)
-
--- ==========================
--- UI LAYOUT & CALLBACKS
--- ==========================
 
 local LeftHome = Tabs.Home:AddLeftGroupbox("you")
 local RightHome = Tabs.Home:AddRightGroupbox("main coder")
@@ -197,12 +225,11 @@ Teleports:AddButton("Current Map", function() game.Players.LocalPlayer:SetAttrib
 Lists:AddToggle("ShowRoundInfo", {
     Default = false,
     Text = "Show Round Info Overlay",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Revives:AddDropdown("ChosenRevive", {
-    Text = "Players To Revive",
+    Text = "Players To Reivive",
     Default = 1,
     Multi = true,
     SpecialType = "Players",
@@ -211,31 +238,24 @@ Revives:AddDropdown("ChosenRevive", {
     Searchable = true,
     Values = {},
 })
-
-Revives:AddButton("Revive Players", function() 
-    task.spawn(reviveAllDowned)
-end)
+Revives:AddButton("Revive Players", function() end)
 
 Revives:AddToggle("AutoRevive", {
     Default = false,
     Text = "Enable Auto-Revive",
-    Callback = function(Value)
-        if Value then task.spawn(reviveAllDowned) end
-    end,
+    Callback = function(Value) end,
 })
 
 Revives:AddToggle("ReviveFriends", {
     Default = false,
     Text = "Only Revive Friends",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Revives:AddToggle("ReviveChosen", {
     Default = false,
     Text = "Only Revive Chosen Players",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 RightHome:AddImage("coder", {
@@ -248,6 +268,9 @@ LeftHome:AddImage("profile", {
     Height = 200,
 })
 
+----------------------------------------------------------------
+-- SPEED INTERFACE LOGIC INTERACTION
+----------------------------------------------------------------
 Player:AddDropdown("SpeedMethod", {
     Text = "Speed Method",
     Values = { "Speed Effect", "Force Walkspeed" },
@@ -259,9 +282,63 @@ Player:AddToggle("SpeedHack", {
     Default = false,
     Text = "Enable Speed Hack",
     Callback = function(Value)
+        if Value then
+            if Options.SpeedMethod.Value == "Speed Effect" then
+                ClientSpeedEffect:Start()
+            elseif Options.SpeedMethod.Value == "Force Walkspeed" then 
+                StartForceWalkspeed()
+            end
+        else
+            ClientSpeedEffect:Stop()
+            StopForceWalkspeed()
+            
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = 16
+            end
+        end
     end,
 })
 
+Player:AddSlider("SpeedAmount", {
+    Text = "Walkspeed",
+    Default = 3,
+    Min = 0,
+    Max = 45,
+    Rounding = 0,
+    Callback = function(Value)
+        ClientSpeedEffect.SpeedLevel = Value
+        if Toggles.SpeedHack.Value and Options.SpeedMethod.Value == "Force Walkspeed" then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.WalkSpeed = Value
+            end
+        end
+    end
+})
+
+-- Watch dropdown changes to seamlessly switch state methods live
+Options.SpeedMethod:OnChanged(function()
+    if Toggles.SpeedHack.Value then
+        if Options.SpeedMethod.Value == "Speed Effect" then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = 16 end -- clear raw changes
+            ClientSpeedEffect:Start()
+        else
+            ClientSpeedEffect:Stop()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = Options.SpeedAmount.Value end
+        end
+    end
+end)
+
+----------------------------------------------------------------
+-- UTILITIES & MISC
+----------------------------------------------------------------
 Trolls:AddLabel("warnn", {
     DoesWrap = true,
     Text = '[<font color="rgb(220, 0, 0)">WARNING</font>] this can get you banned since its visible asf.'
@@ -277,29 +354,25 @@ Trolls:AddDropdown("ChosenTrollEnt", {
 Trolls:AddToggle("HoverEntity", {
     Default = false,
     Text = "Hover Over Entity",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Trolls:AddToggle("UnderEntity", {
     Default = false,
     Text = "Hide Under Entity",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Trolls:AddToggle("OrbitEntity", {
     Default = false,
     Text = "Orbit Entity",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Notifs:AddToggle("NotifyChat", {
     Default = false,
     Text = "Notify Chat",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Notifs:AddInput("NotifText", {
@@ -309,45 +382,31 @@ Notifs:AddInput("NotifText", {
     ClearTextOnFocus = false,
     Text = "Chat Suffix",
     Placeholder = "spawn text",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Player:AddToggle("MaxStamina", {
     Default = false,
     Text = "Max Stamina",
-    Callback = function(Value)
-    end,
-})
-
-Player:AddSlider("SpeedAmount", {
-    Text = "Walkspeed",
-    Default = 24,
-    Min = 0,
-    Max = 128,
-    Rounding = 0,
+    Callback = function(Value) end,
 })
 
 Prompts:AddToggle("InstantPrompts", {
     Default = false,
     Text = "Instant Interact",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 Prompts:AddToggle("AutoInteract", {
     Default = false,
     Text = "Auto Interact",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 ESPTab:AddToggle("PlayersESP", {
     Default = false,
     Text = "Player",
-    Callback = function(Value)
-        -- Hook to Player ESP function if needed later
-    end,
+    Callback = function(Value) end,
 }):AddColorPicker("PlayerColor", {
     Default = Color3.new(1, 1, 1),
     Title = "PlayerColor",
@@ -357,9 +416,7 @@ ESPTab:AddToggle("PlayersESP", {
 ESPTab:AddToggle("EntitiesESP", {
     Default = false,
     Text = "Entities",
-    Callback = function(Value)
-        scanEntities()
-    end,
+    Callback = function(Value) end,
 }):AddColorPicker("EntitiesColor", {
     Default = Color3.new(1, 0, 0),
     Title = "EntitiesColor",
@@ -369,8 +426,7 @@ ESPTab:AddToggle("EntitiesESP", {
 ESPTab:AddToggle("ObjectiveESP", {
     Default = false,
     Text = "Objective",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 }):AddColorPicker("ObjectiveColor", {
     Default = Color3.new(1, 0.8, 0),
     Title = "ObjectiveColor",
@@ -380,31 +436,25 @@ ESPTab:AddToggle("ObjectiveESP", {
 ESPSETTab:AddToggle("ESPHighlight", {
     Default = true,
     Text = "Highlights",
-    Callback = function(Value)
-        scanEntities()
-    end,
+    Callback = function(Value) end,
 })
 
 ESPSETTab:AddToggle("ESPText", {
     Default = true,
     Text = "Text",
-    Callback = function(Value)
-        scanEntities()
-    end,
+    Callback = function(Value) end,
 })
 
 ESPSETTab:AddToggle("ESPTracer", {
     Default = false,
     Text = "Tracers",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 ESPSETTab:AddToggle("PulseObjectives", {
     Default = false,
     Text = "Pulse Objectives",
-    Callback = function(Value)
-    end,
+    Callback = function(Value) end,
 })
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -427,10 +477,6 @@ MenuGroup:AddButton("Unload", function()
 end)
 
 Library.ToggleKeybind = Options.MenuKeybind
-
--- ==========================
--- CONFIG & THEME MANAGER
--- ==========================
 
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
