@@ -60,12 +60,12 @@ local function performRevive(prompt)
     if char and char.PrimaryPart and prompt.Parent then
         local ogcf = char.PrimaryPart.CFrame
         char:PivotTo(prompt.Parent.CFrame * CFrame.new(0, -3, 0))
-        task.wait(0.55)
-        if keypress then keypress(0x45) end
+        task.wait(.55)
+        if keypress then keypress("0x45") end
         prompt.HoldDuration = 0
         if fireproximityprompt then fireproximityprompt(prompt) end
         task.wait(0.5)
-        if keyrelease then keyrelease(0x45) end
+        if keyrelease then keyrelease("0x45") end
         task.wait()
         char:PivotTo(ogcf)
     end
