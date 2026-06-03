@@ -319,16 +319,17 @@ Player:AddSlider("SpeedAmount", {
     end
 })
 
--- Watch dropdown changes to seamlessly switch state methods live
 Options.SpeedMethod:OnChanged(function()
     if Toggles.SpeedHack.Value then
         if Options.SpeedMethod.Value == "Speed Effect" then
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.WalkSpeed = 16 end -- clear raw changes
+            if hum then hum.WalkSpeed = 16 end
             ClientSpeedEffect:Start()
+            StopForceWalkspeed()
         else
             ClientSpeedEffect:Stop()
+            StartForceWalkspeed()
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum then hum.WalkSpeed = Options.SpeedAmount.Value end
