@@ -64,7 +64,7 @@ function ClientSpeedEffect:Start()
                 
                 speedStack:AddModifier(self._stackName, function(modifierData)
                     -- Formula matches the decompiler: Base * (1 + Level / 3)
-                    modifierData.Output = (modifierData.Output or 1) * (1 + self.SpeedLevel / 33)
+                    modifierData.Output = (modifierData.Output or 1) * (1 + ((self.SpeedLevel - 1) * 5))
                     return false
                 end, 5, true)
                 
