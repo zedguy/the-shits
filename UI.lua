@@ -64,7 +64,7 @@ function ClientSpeedEffect:Start()
                 
                 speedStack:AddModifier(self._stackName, function(modifierData)
                     -- Formula matches the decompiler: Base * (1 + Level / 3)
-                    modifierData.Output = (modifierData.Output or 1) * (1 + ((self.SpeedLevel - 1) * 5))
+                    modifierData.Output = (modifierData.Output or 1) + ((self.SpeedLevel - 1) * 5)
                     return false
                 end, 5, true)
                 
@@ -304,8 +304,8 @@ Player:AddToggle("SpeedHack", {
 Player:AddSlider("SpeedAmount", {
     Text = "Walkspeed",
     Default = 3,
-    Min = 0,
-    Max = 45,
+    Min = 1,
+    Max = 100,
     Rounding = 0,
     Callback = function(Value)
         ClientSpeedEffect.SpeedLevel = Value
