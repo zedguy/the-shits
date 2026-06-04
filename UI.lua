@@ -1,3 +1,6 @@
+if game.PlaceId ~= 5974510967 then
+    return warn("shit")
+end
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
@@ -29,6 +32,52 @@ local ClientSpeedEffect = {
     _sharedCharObj = nil,
     _stackName = "CLIENT_SPEED_OVERRIDE"
 }
+local MaxStaminaEffect = {
+    Name = "MaxStamina",
+    Enabled = false,
+    Connection = nil
+}
+
+function MaxStaminaEffect:Start()
+    local character = LocalPlayer.Character
+    if not character then 
+        warn("[-] Character not found. Wait until you spawn to run this script.")
+        return 
+    end
+    local sharedCharObj = SharedCharacter.getObject(character)
+    if not sharedCharObj then
+        sharedCharObj = SharedCharacter.new and SharedCharacter.new(character)
+    end
+
+    if not sharedCharObj then
+        warn("[-] Failed to bind to the game's SharedCharacter tracking object.")
+        return
+    end
+    print("[+] MaxStamina effect successfully attached to character.")
+    self.Connection = RunService.Heartbeat:Connect(function(dt)
+        if not self.Enabled then return end
+        pcall(function()
+            sharedCharObj:SetStaminaActivity(0)
+            sharedCharObj:RegainStamina(10000, 1, true)
+        end)
+    end)
+end
+function MaxStaminaEffect:Stop()
+    self.Enabled = false
+    if self.Connection then
+        self.Connection:Disconnect()
+        self.Connection = nil
+    end
+    print("[-] MaxStamina effect stopped.")
+end
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    task.wait(1) 
+    if MaxStaminaEffect.Enabled then
+        MaxStaminaEffect:Stop()
+        MaxStaminaEffect.Enabled = true
+        MaxStaminaEffect:Start()
+    end
+end)
 
 function ClientSpeedEffect:Start()
     local character = LocalPlayer.Character
@@ -64,7 +113,7 @@ function ClientSpeedEffect:Start()
                 
                 speedStack:AddModifier(self._stackName, function(modifierData)
                     -- Formula matches the decompiler: Base * (1 + Level / 3)
-                    modifierData.Output = (modifierData.Output or 1) + ((self.SpeedLevel - 1) * 5)
+                    modifierData.Output = (modifierData.Output or 1) + ((self.SpeedLevel - 1) * 1)
                     return false
                 end, 5, true)
                 
@@ -301,6 +350,19 @@ Player:AddToggle("SpeedHack", {
     end,
 })
 
+Player:AddToggle("MaxStamina", {
+    Default = false,
+    Text = "Max Stamina",
+    Callback = function(Value)
+        MaxStaminaEffect.Enabled = Toggles.MaxStamina.Value
+        if Toggles.MaxStamina.Value == true then
+            MaxStaminaEffect:Start()
+        else
+            MaxStaminaEffect:Stop()
+        end
+    end,
+})
+
 Player:AddSlider("SpeedAmount", {
     Text = "Walkspeed",
     Default = 3,
@@ -386,12 +448,6 @@ Notifs:AddInput("NotifText", {
     Callback = function(Value) end,
 })
 
-Player:AddToggle("MaxStamina", {
-    Default = false,
-    Text = "Max Stamina",
-    Callback = function(Value) end,
-})
-
 Prompts:AddToggle("InstantPrompts", {
     Default = false,
     Text = "Instant Interact",
@@ -452,6 +508,16 @@ ESPSETTab:AddToggle("ESPTracer", {
     Callback = function(Value) end,
 })
 
+ESPSETTab:AddToggle("PulsePlayers", {
+    Default = false,
+    Text = "Pulse Players",
+    Callback = function(Value) end,
+})
+ESPSETTab:AddToggle("PulseEntities", {
+    Default = false,
+    Text = "Pulse Entities",
+    Callback = function(Value) end,
+})
 ESPSETTab:AddToggle("PulseObjectives", {
     Default = false,
     Text = "Pulse Objectives",
