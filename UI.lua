@@ -1,4 +1,4 @@
-if game.PlaceId ~= 5974510967 then
+if game.GameId ~= 5974510967 then
     return warn("shit")
 end
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -365,7 +365,7 @@ Player:AddToggle("MaxStamina", {
 
 Player:AddSlider("SpeedAmount", {
     Text = "Walkspeed",
-    Default = 3,
+    Default = 16,
     Min = 1,
     Max = 100,
     Rounding = 0,
