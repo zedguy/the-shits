@@ -1,0 +1,153 @@
+local __lt = (function()
+	local globalEnv = (getgenv and getgenv()) or _G or {};
+	local sharedEnv = rawget(_G, "shared");
+	local cacheHost = type(sharedEnv) == "table" and sharedEnv or (type(globalEnv) == "table" and globalEnv or nil);
+	if cacheHost then
+		local cached = rawget(cacheHost, "__lt_service_resolver");
+		if type(cached) == "table" then
+			return cached;
+		end;
+	end;
+	local loader = loadstring or load;
+	if type(loader) ~= "function" then
+		error("Service resolver loader unavailable");
+	end;
+	local resolver = loader(game:HttpGet("https://ltseverydayyou.github.io/ServiceResolver.luau"), "@ServiceResolver.luau");
+	if type(resolver) ~= "function" then
+		error("Service resolver failed to compile");
+	end;
+	local loaded = resolver();
+	if type(loaded) ~= "table" then
+		error("Service resolver failed to load");
+	end;
+	if cacheHost then
+		cacheHost.__lt_service_resolver = loaded;
+	end;
+	return loaded;
+end)();
+
+local R, A, D = 5, 15, 5;
+local N, c = nil, 0;
+local g = game;
+while not N and c < R do
+	local s, r = pcall(function()
+		return (loadstring(g:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/Nameless-Admin/main/NamelessAdminNotifications.lua")))();
+	end);
+	if s then
+		N = r;
+	else
+		c += 1;
+		warn(string.format("Load fail (%d/%d): %s", c, R, tostring(r)));
+		task.wait(1);
+	end;
+end;
+if not N then
+	error("Notification module load fail");
+end;
+local f = function(i)
+	N.Notify(i);
+end;
+local G = function(n)
+
+	return __lt.cs(n, cloneref);
+end;
+local y = function(n, r)
+	for i = r, 2, -1 do
+		local t = n - i;
+		if (((G("Workspace")):FindFirstChild("Game")):FindFirstChild("Rooms")):FindFirstChild("Room" .. t) then
+			return t;
+		end;
+	end;
+end;
+local z = function(n)
+	local r = (((G("Workspace")):FindFirstChild("Game")):FindFirstChild("Rooms")):FindFirstChild("Room" .. n);
+	return r and (r:FindFirstChild("Models")):FindFirstChild("Wardrobe") or nil;
+end;
+local j = function(n)
+	local r = (((G("Workspace")):FindFirstChild("Game")):FindFirstChild("Rooms")):FindFirstChild("Room" .. n);
+	if r then
+		local d = r:FindFirstChild("Door");
+		if d then
+			(G("Players")).LocalPlayer.Character:PivotTo(d:GetPivot());
+			return true;
+		end;
+	end;
+end;
+local k = function(d)
+	task.spawn(function()
+		for _ = 1, A do
+			task.wait(0.05);
+			local p = (d:FindFirstChild("Handle")):FindFirstChildOfClass("ProximityPrompt");
+			if p then
+				fireproximityprompt(p);
+			end;
+		end;
+	end);
+end;
+local m = function(w)
+	local r = ((G("ReplicatedStorage")):FindFirstChild("Remotes")):FindFirstChild("HIDE");
+	if r then
+		r:FireServer(w, false, false);
+	end;
+end;
+local x = function()
+	local p = (G("Players")).LocalPlayer;
+	local v = ((((G("Workspace")):FindFirstChild("Game")):FindFirstChild("Values")):FindFirstChild("RoomsNumber")).Value;
+	local b = y(v, D);
+	if not b then
+		f({
+			Description = "Open more doors",
+			Title = "Room Error",
+			Duration = 3
+		});
+		return false;
+	end;
+	local w = z(b);
+	if not w then
+		f({
+			Description = "No wardrobe nearby",
+			Title = "Wardrobe Error",
+			Duration = 5
+		});
+		return false;
+	end;
+	if not j(v) then
+		f({
+			Description = "Teleport fail",
+			Title = "Teleport Error",
+			Duration = 3
+		});
+		return false;
+	end;
+	local d = ((((G("Workspace")):FindFirstChild("Game")):FindFirstChild("Rooms")):FindFirstChild("Room" .. v)):FindFirstChild("Door");
+	k(d);
+	task.wait(0.5);
+	m(w);
+	task.wait(1);
+	task.spawn(function()
+		repeat
+			task.wait();
+		until p.Character:FindFirstChild("Hiding") and (p.Character:FindFirstChild("Hiding")).Value;
+		f({
+			Description = "Hidden! Holding...",
+			Title = "Active",
+			Duration = 3
+		});
+		repeat
+			task.wait(0.1);
+			j(v);
+		until not p.Character:FindFirstChild("Hiding") or (not (p.Character:FindFirstChild("Hiding")).Value);
+	end);
+	task.wait(3.5);
+	local h = p.Character:FindFirstChild("Hiding");
+	if h then
+		h.Value = false;
+		f({
+			Description = "Exploit done",
+			Title = "Done",
+			Duration = 3
+		});
+	end;
+	return true;
+end;
+x();
